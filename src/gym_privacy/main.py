@@ -1,11 +1,10 @@
 from pathlib import Path
-
-from video_input import VideoInput  
-
+from gym_privacy import VideoInput
 
 def main() -> None:
-    video_path = Path("data/sample.mp4")  # point this at a real file on disk
 
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    video_path = PROJECT_ROOT / "tests" / "data" / "test_video_1s_1080p.mp4"
     video = VideoInput(video_path)
 
     print(f"Path:   {video.path}")
@@ -13,7 +12,7 @@ def main() -> None:
     print(f"Width:  {video.width}")
     print(f"Height: {video.height}")
 
-    # Try reading a few frames
+    # reading a few frames
     for i in range(5):
         ret, frame = video.read_frame()
         if not ret:

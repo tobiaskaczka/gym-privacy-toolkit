@@ -3,7 +3,7 @@ import pytest
 from gym_privacy import VideoInput
 
 BASE_DIR = Path(__file__).parent
-SAMPLE_VIDEO = Path(BASE_DIR / "data" / "test_video_4s_1080p.mp4")
+SAMPLE_VIDEO = Path(BASE_DIR / "data" / "test_video_1s_1080p.mp4")
 
 
 @pytest.mark.skipif(
