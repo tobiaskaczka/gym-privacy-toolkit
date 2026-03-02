@@ -1,11 +1,12 @@
 from pathlib import Path
-from gym_privacy import VideoInput
+from gym_privacy import VideoInput, YuNetFaceDetector
 
 def main() -> None:
 
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
     video_path = PROJECT_ROOT / "tests" / "data" / "test_video_1s_1080p.mp4"
     video = VideoInput(video_path)
+    detector = YuNetFaceDetector()
 
     print(f"Path:   {video.path}")
     print(f"FPS:    {video.fps}")
@@ -18,10 +19,13 @@ def main() -> None:
         if not ret:
             print(f"Stopped at frame {i}: no more frames or read failed.")
             break
-        print(f"Frame {i}: shape={frame.shape}")
+        
+        boxes = detector.detect(frame)
+        print(f"Detected {len(boxes)} faces")
+        if boxes:
+            print(f"First box: {boxes[0]}")
 
     video.release()
-
 
 if __name__ == "__main__":
     main()
