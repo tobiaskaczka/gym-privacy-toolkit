@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -6,6 +7,14 @@ import numpy as np
 
 # Bounding box (x, y, w, h)
 BBox = tuple[int, int, int, int]
+Point = tuple[int, int]
+
+
+@dataclass(frozen=True)
+class DetectedFace:
+    box: BBox
+    landmarks: tuple[Point, ...] | None = None
+    score: float | None = None
 
 
 class FaceDetector(ABC):
@@ -13,9 +22,13 @@ class FaceDetector(ABC):
     def __init__(self, model_path: str | Path) -> None:
         self.model_path = Path(model_path)
 
-    @abstractmethod
     def detect(self, frame: np.ndarray) -> list[BBox]:
         """Return detected face bounding boxes for a frame."""
+        return [face.box for face in self.detect_faces(frame)]
+
+    @abstractmethod
+    def detect_faces(self, frame: np.ndarray) -> list[DetectedFace]:
+        """Return detected faces with any backend-specific metadata."""
         raise NotImplementedError
 
 
@@ -30,7 +43,7 @@ class YuNetFaceDetector(FaceDetector):
         if not self.model_path.is_file():
             raise FileNotFoundError(f"YuNet model file not found: {self.model_path}")
 
-        # Placeholder input size, updated in detect().
+        # Placeholder input size, updated for each frame.
         self.det_res = (320, 320)
         self.detector = cv2.FaceDetectorYN.create(
             str(self.model_path),
@@ -42,7 +55,7 @@ class YuNetFaceDetector(FaceDetector):
         )
         self.detector.setInputSize(self.det_res)
 
-    def detect(self, frame: np.ndarray) -> list[BBox]:
+    def detect_faces(self, frame: np.ndarray) -> list[DetectedFace]:
         if frame is None or not hasattr(frame, "shape"):
             raise ValueError("frame must be a valid numpy image array")
 
@@ -62,8 +75,21 @@ class YuNetFaceDetector(FaceDetector):
         if faces is None:
             return []
 
-        bboxes: list[BBox] = []
+        detected_faces: list[DetectedFace] = []
         for face in faces:
             x, y, bw, bh = face[:4]
-            bboxes.append((int(x), int(y), int(bw), int(bh)))
-        return bboxes
+            landmarks = (
+                (int(face[4]), int(face[5])),
+                (int(face[6]), int(face[7])),
+                (int(face[8]), int(face[9])),
+                (int(face[10]), int(face[11])),
+                (int(face[12]), int(face[13])),
+            )
+            detected_faces.append(
+                DetectedFace(
+                    box=(int(x), int(y), int(bw), int(bh)),
+                    landmarks=landmarks,
+                    score=float(face[14]),
+                )
+            )
+        return detected_faces
