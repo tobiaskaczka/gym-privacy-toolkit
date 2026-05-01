@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from gym_privacy import BlurFaceAnonymizer, VideoInput, YuNetFaceDetector
+from gym_privacy import BBox, BlurFaceAnonymizer, VideoInput, YuNetFaceDetector
 
 BASE_DIR = Path(__file__).parent
 SAMPLE_VIDEO = BASE_DIR / "data" / "test_video_1s_1080p.mp4"
@@ -25,16 +25,15 @@ def test_anonymize_valid_bbox_modifies_roi_and_preserves_shape_dtype() -> None:
     anonymizer = BlurFaceAnonymizer(kernel_size=21)
     rng = np.random.default_rng(123)
     frame = rng.integers(0, 256, size=(120, 160, 3), dtype=np.uint8)
-    box = (20, 30, 60, 50)
+    bbox = BBox.from_xywh(20, 30, 60, 50)
 
-    output = anonymizer.anonymize(frame, [box])
+    output = anonymizer.anonymize(frame, [bbox])
 
     assert output.shape == frame.shape
     assert output.dtype == frame.dtype
 
-    x, y, w, h = box
-    original_roi = frame[y : y + h, x : x + w]
-    output_roi = output[y : y + h, x : x + w]
+    original_roi = frame[bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
+    output_roi = output[bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
     assert not np.array_equal(output_roi, original_roi)
 
 
@@ -42,13 +41,13 @@ def test_anonymize_multiple_boxes_processes_all_regions() -> None:
     anonymizer = BlurFaceAnonymizer(kernel_size=19)
     rng = np.random.default_rng(99)
     frame = rng.integers(0, 256, size=(100, 140, 3), dtype=np.uint8)
-    boxes = [(10, 10, 30, 30), (70, 40, 40, 40)]
+    bboxes = [BBox.from_xywh(10, 10, 30, 30), BBox.from_xywh(70, 40, 40, 40)]
 
-    output = anonymizer.anonymize(frame, boxes)
+    output = anonymizer.anonymize(frame, bboxes)
 
-    for x, y, w, h in boxes:
-        original_roi = frame[y : y + h, x : x + w]
-        output_roi = output[y : y + h, x : x + w]
+    for bbox in bboxes:
+        original_roi = frame[bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
+        output_roi = output[bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
         assert not np.array_equal(output_roi, original_roi)
 
     assert output.shape == frame.shape
@@ -59,19 +58,18 @@ def test_anonymize_does_not_modify_pixels_outside_boxes() -> None:
     anonymizer = BlurFaceAnonymizer(kernel_size=21)
     rng = np.random.default_rng(7)
     frame = rng.integers(0, 256, size=(90, 120, 3), dtype=np.uint8)
-    box = (30, 20, 40, 30)
+    bbox = BBox.from_xywh(30, 20, 40, 30)
 
-    output = anonymizer.anonymize(frame, [box])
+    output = anonymizer.anonymize(frame, [bbox])
 
-    x, y, w, h = box
     # Outside the bbox: top strip
-    assert np.array_equal(output[:y, :, :], frame[:y, :, :])
+    assert np.array_equal(output[: bbox.y1, :, :], frame[: bbox.y1, :, :])
     # Outside the bbox: bottom strip
-    assert np.array_equal(output[y + h :, :, :], frame[y + h :, :, :])
+    assert np.array_equal(output[bbox.y2 :, :, :], frame[bbox.y2 :, :, :])
     # Outside the bbox: left strip (same y-range as bbox)
-    assert np.array_equal(output[y : y + h, :x, :], frame[y : y + h, :x, :])
+    assert np.array_equal(output[bbox.y1 : bbox.y2, : bbox.x1, :], frame[bbox.y1 : bbox.y2, : bbox.x1, :])
     # Outside the bbox: right strip (same y-range as bbox)
-    assert np.array_equal(output[y : y + h, x + w :, :], frame[y : y + h, x + w :, :])
+    assert np.array_equal(output[bbox.y1 : bbox.y2, bbox.x2 :, :], frame[bbox.y1 : bbox.y2, bbox.x2 :, :])
 
 
 def test_anonymize_invalid_frame_raises() -> None:
@@ -96,10 +94,10 @@ def test_blur_anonymizer_smoke_with_yunet_detections() -> None:
         assert frame is not None
 
         detector = YuNetFaceDetector()
-        boxes = detector.detect(frame)
+        bboxes = detector.detect(frame)
 
         anonymizer = BlurFaceAnonymizer()
-        output = anonymizer.anonymize(frame, boxes)
+        output = anonymizer.anonymize(frame, bboxes)
 
         assert output.shape == frame.shape
         assert output.dtype == frame.dtype

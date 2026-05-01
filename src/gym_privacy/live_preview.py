@@ -3,8 +3,7 @@ import argparse
 import cv2
 import numpy as np
 
-from gym_privacy import BlurFaceAnonymizer, DetectedFace, YuNetFaceDetector
-from gym_privacy.face_detection import BBox
+from gym_privacy import BBox, BlurFaceAnonymizer, DetectedFace, YuNetFaceDetector
 
 WINDOW_NAME = "Gym Privacy Live Preview"
 MODES = ["raw", "detect", "landmarks", "blur"]
@@ -24,24 +23,36 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def draw_boxes(frame: np.ndarray, boxes: list[BBox]) -> np.ndarray:
+def draw_bboxes(frame: np.ndarray, bboxes: list[BBox]) -> np.ndarray:
     preview = frame.copy()
-    for x, y, w, h in boxes:
-        cv2.rectangle(preview, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    for bbox in bboxes:
+        cv2.rectangle(
+            preview,
+            bbox.top_left.as_tuple(),
+            bbox.bottom_right.as_tuple(),
+            (0, 255, 0),
+            2,
+        )
     return preview
 
 
 def draw_faces_with_landmarks(frame: np.ndarray, faces: list[DetectedFace]) -> np.ndarray:
     preview = frame.copy()
     for face in faces:
-        x, y, w, h = face.box
-        cv2.rectangle(preview, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        bbox = face.bbox
+        cv2.rectangle(
+            preview,
+            bbox.top_left.as_tuple(),
+            bbox.bottom_right.as_tuple(),
+            (0, 255, 0),
+            2,
+        )
 
         if face.score is not None:
             cv2.putText(
                 preview,
                 f"{face.score:.2f}",
-                (x, max(0, y - 8)),
+                (bbox.x1, max(0, bbox.y1 - 8)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
                 (0, 255, 0),
@@ -53,7 +64,7 @@ def draw_faces_with_landmarks(frame: np.ndarray, faces: list[DetectedFace]) -> n
             continue
 
         for point in face.landmarks:
-            cv2.circle(preview, point, 3, (0, 0, 255), -1)
+            cv2.circle(preview, point.as_tuple(), 3, (0, 0, 255), -1)
     return preview
 
 
@@ -67,16 +78,16 @@ def render_preview(
         return frame
 
     if mode == "detect":
-        boxes = detector.detect(frame)
-        return draw_boxes(frame, boxes)
+        bboxes = detector.detect(frame)
+        return draw_bboxes(frame, bboxes)
 
     if mode == "landmarks":
         faces = detector.detect_faces(frame)
         return draw_faces_with_landmarks(frame, faces)
 
     if mode == "blur":
-        boxes = detector.detect(frame)
-        return anonymizer.anonymize(frame, boxes)
+        bboxes = detector.detect(frame)
+        return anonymizer.anonymize(frame, bboxes)
 
     raise ValueError(f"Unknown preview mode: {mode}")
 

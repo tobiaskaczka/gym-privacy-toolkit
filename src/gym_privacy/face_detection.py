@@ -5,14 +5,64 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-# Bounding box (x, y, w, h)
-BBox = tuple[int, int, int, int]
-Point = tuple[int, int]
+
+@dataclass(frozen=True)
+class Point:
+    x: int
+    y: int
+
+    def as_tuple(self) -> tuple[int, int]:
+        return (self.x, self.y)
+
+
+@dataclass(frozen=True)
+class BBox:
+    """Pixel-space bbox using top-left and bottom-right edge coordinates."""
+
+    top_left: Point
+    bottom_right: Point
+
+    def __post_init__(self) -> None:
+        if self.bottom_right.x < self.top_left.x:
+            raise ValueError("bbox bottom_right.x must be greater than or equal to top_left.x")
+        if self.bottom_right.y < self.top_left.y:
+            raise ValueError("bbox bottom_right.y must be greater than or equal to top_left.y")
+
+    @classmethod
+    def from_xywh(cls, x: int, y: int, width: int, height: int) -> "BBox":
+        return cls(
+            top_left=Point(x, y),
+            bottom_right=Point(x + width, y + height),
+        )
+
+    @property
+    def x1(self) -> int:
+        return self.top_left.x
+
+    @property
+    def y1(self) -> int:
+        return self.top_left.y
+
+    @property
+    def x2(self) -> int:
+        return self.bottom_right.x
+
+    @property
+    def y2(self) -> int:
+        return self.bottom_right.y
+
+    @property
+    def width(self) -> int:
+        return self.x2 - self.x1
+
+    @property
+    def height(self) -> int:
+        return self.y2 - self.y1
 
 
 @dataclass(frozen=True)
 class DetectedFace:
-    box: BBox
+    bbox: BBox
     landmarks: tuple[Point, ...] | None = None
     score: float | None = None
 
@@ -24,7 +74,7 @@ class FaceDetector(ABC):
 
     def detect(self, frame: np.ndarray) -> list[BBox]:
         """Return detected face bounding boxes for a frame."""
-        return [face.box for face in self.detect_faces(frame)]
+        return [face.bbox for face in self.detect_faces(frame)]
 
     @abstractmethod
     def detect_faces(self, frame: np.ndarray) -> list[DetectedFace]:
@@ -79,15 +129,15 @@ class YuNetFaceDetector(FaceDetector):
         for face in faces:
             x, y, bw, bh = face[:4]
             landmarks = (
-                (int(face[4]), int(face[5])),
-                (int(face[6]), int(face[7])),
-                (int(face[8]), int(face[9])),
-                (int(face[10]), int(face[11])),
-                (int(face[12]), int(face[13])),
+                Point(int(face[4]), int(face[5])),
+                Point(int(face[6]), int(face[7])),
+                Point(int(face[8]), int(face[9])),
+                Point(int(face[10]), int(face[11])),
+                Point(int(face[12]), int(face[13])),
             )
             detected_faces.append(
                 DetectedFace(
-                    box=(int(x), int(y), int(bw), int(bh)),
+                    bbox=BBox.from_xywh(int(x), int(y), int(bw), int(bh)),
                     landmarks=landmarks,
                     score=float(face[14]),
                 )

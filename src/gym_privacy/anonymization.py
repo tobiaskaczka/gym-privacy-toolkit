@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 import cv2
 import numpy as np
@@ -8,8 +9,8 @@ from .face_detection import BBox
 
 class FaceAnonymizer(ABC):
     @abstractmethod
-    def anonymize(self, frame: np.ndarray, boxes: list[BBox]) -> np.ndarray:
-        """Return a frame with anonymization applied to all given face boxes."""
+    def anonymize(self, frame: np.ndarray, bboxes: Sequence[BBox]) -> np.ndarray:
+        """Return a frame with anonymization applied to all given face bboxes."""
         raise NotImplementedError
 
 
@@ -19,7 +20,7 @@ class BlurFaceAnonymizer(FaceAnonymizer):
             raise ValueError("kernel_size must be a positive odd integer")
         self.kernel_size = kernel_size
 
-    def anonymize(self, frame: np.ndarray, boxes: list[BBox]) -> np.ndarray:
+    def anonymize(self, frame: np.ndarray, bboxes: Sequence[BBox]) -> np.ndarray:
         if frame is None or not hasattr(frame, "shape"):
             raise ValueError("frame must be a valid numpy image array")
 
@@ -31,16 +32,14 @@ class BlurFaceAnonymizer(FaceAnonymizer):
             raise ValueError("frame height and width must be positive")
 
         output = frame.copy()
-        for x, y, bw, bh in boxes:
-            x2 = x + bw
-            y2 = y + bh
-            roi = output[y:y2, x:x2]
+        for bbox in bboxes:
+            roi = output[bbox.y1 : bbox.y2, bbox.x1 : bbox.x2]
             if roi.size == 0:
                 continue
 
             kx, ky = self._kernel_for_roi(roi.shape[1], roi.shape[0])
             blurred = cv2.GaussianBlur(roi, (kx, ky), 0)
-            output[y:y2, x:x2] = blurred
+            output[bbox.y1 : bbox.y2, bbox.x1 : bbox.x2] = blurred
 
         return output
 

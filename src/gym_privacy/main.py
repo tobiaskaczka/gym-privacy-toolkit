@@ -80,14 +80,14 @@ def main() -> None:
             if not ret:
                 break
 
-            boxes = detector.detect(frame)
-            blurred_frame = anonymizer.anonymize(frame, boxes)
+            bboxes = detector.detect(frame)
+            blurred_frame = anonymizer.anonymize(frame, bboxes)
             writer.write(blurred_frame)
 
             if args.debug_previews and frame_count == 0:
                 save_debug_previews(output_path, frame, blurred_frame)
 
-            total_faces += len(boxes)
+            total_faces += len(bboxes)
             frame_count += 1
     finally:
         writer.release()
