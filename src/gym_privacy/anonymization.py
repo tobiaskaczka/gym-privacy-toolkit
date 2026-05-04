@@ -4,7 +4,7 @@ from collections.abc import Sequence
 import cv2
 import numpy as np
 
-from .face_detection import BBox
+from .detection import BBox
 
 
 class FaceAnonymizer(ABC):

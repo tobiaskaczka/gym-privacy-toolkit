@@ -62,8 +62,14 @@ class BBox:
 
 @dataclass(frozen=True)
 class DetectedFace:
+    """Detected face metadata.
+
+    Landmarks, when present, use the project-wide five-point order:
+    left eye, right eye, nose tip, left mouth corner, right mouth corner.
+    """
+
     bbox: BBox
-    landmarks: tuple[Point, ...] | None = None
+    landmarks: tuple[Point, Point, Point, Point, Point] | None = None
     score: float | None = None
 
 
@@ -129,11 +135,11 @@ class YuNetFaceDetector(FaceDetector):
         for face in faces:
             x, y, bw, bh = face[:4]
             landmarks = (
-                Point(int(face[4]), int(face[5])),
                 Point(int(face[6]), int(face[7])),
+                Point(int(face[4]), int(face[5])),
                 Point(int(face[8]), int(face[9])),
-                Point(int(face[10]), int(face[11])),
                 Point(int(face[12]), int(face[13])),
+                Point(int(face[10]), int(face[11])),
             )
             detected_faces.append(
                 DetectedFace(

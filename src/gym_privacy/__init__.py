@@ -1,5 +1,6 @@
 from .video_input import VideoInput
-from .face_detection import BBox, DetectedFace, FaceDetector, Point, YuNetFaceDetector
+from .detection import BBox, DetectedFace, FaceDetector, Point, YuNetFaceDetector
+from .alignment import ArcFaceAligner, FaceAligner
 from .anonymization import FaceAnonymizer, BlurFaceAnonymizer
 
 __all__ = [
@@ -9,6 +10,8 @@ __all__ = [
     "FaceDetector",
     "YuNetFaceDetector",
     "DetectedFace",
+    "ArcFaceAligner",
+    "FaceAligner",
     "FaceAnonymizer",
     "BlurFaceAnonymizer",
 ]
